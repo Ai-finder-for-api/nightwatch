@@ -91,7 +91,7 @@ fn read_full<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<bool, PcapError> {
     while got < buf.len() {
         match r.read(&mut buf[got..]) {
             Ok(0) if got == 0 => return Ok(false),
-            Ok(0) => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "partial PCAP record header")),
+            Ok(0) => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "partial PCAP record header").into()),
             Ok(n) => got += n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
             Err(e) => return Err(e.into()),
