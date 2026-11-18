@@ -14,14 +14,26 @@ fn default_rules() -> RuleSet {
 fn malformed_frames_never_panic() {
     let mut cut = tcp_frame(Ipv4Addr::LOCALHOST, Ipv4Addr::LOCALHOST, 1, 2, TCP_SYN);
     cut.truncate(30);
-    for junk in [vec![], vec![0u8; 5], vec![0x45u8; 20], vec![0x60u8; 39], cut] {
+    for junk in [
+        vec![],
+        vec![0u8; 5],
+        vec![0x45u8; 20],
+        vec![0x60u8; 39],
+        cut,
+    ] {
         assert!(parse_ethernet(0, &junk).is_err());
     }
 }
 
 #[test]
 fn parses_tcp_syn() {
-    let f = tcp_frame(Ipv4Addr::new(10, 1, 1, 1), Ipv4Addr::new(10, 1, 1, 2), 1234, 80, TCP_SYN);
+    let f = tcp_frame(
+        Ipv4Addr::new(10, 1, 1, 1),
+        Ipv4Addr::new(10, 1, 1, 2),
+        1234,
+        80,
+        TCP_SYN,
+    );
     let p = parse_frame(5, &f, LINKTYPE_ETHERNET).unwrap();
     assert_eq!(p.dst_port(), Some(80));
     assert!(matches!(p.transport, Transport::Tcp { flags, .. } if flags == TCP_SYN));
@@ -38,7 +50,9 @@ fn attack_patterns_detected() {
     for id in ["PS-001", "FC-001", "FC-002", "DNS-002", "ICMP-001"] {
         assert!(hits.iter().any(|f| f.rule_id == id), "{id} missed");
     }
-    assert!(hits.iter().all(|f| f.confidence > 0.0 && f.confidence <= 1.0));
+    assert!(hits
+        .iter()
+        .all(|f| f.confidence > 0.0 && f.confidence <= 1.0));
 }
 
 #[test]
@@ -47,7 +61,11 @@ fn benign_traffic_is_quiet() {
     let n: usize = sample_capture()
         .iter()
         .take(10)
-        .map(|r| engine.process(&parse_frame(r.ts_us, &r.data, LINKTYPE_ETHERNET).unwrap()).len())
+        .map(|r| {
+            engine
+                .process(&parse_frame(r.ts_us, &r.data, LINKTYPE_ETHERNET).unwrap())
+                .len()
+        })
         .sum();
     assert_eq!(n, 0);
 }
@@ -58,7 +76,12 @@ fn pcap_roundtrip_and_pipeline() {
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("sample.pcap");
     let recs: Vec<Record> = sample_capture();
-    write_pcap(std::fs::File::create(&path).unwrap(), LINKTYPE_ETHERNET, &recs).unwrap();
+    write_pcap(
+        std::fs::File::create(&path).unwrap(),
+        LINKTYPE_ETHERNET,
+        &recs,
+    )
+    .unwrap();
     let mut rd = PcapReader::new(std::fs::File::open(&path).unwrap()).unwrap();
     let mut count = 0;
     while rd.next_record().unwrap().is_some() {

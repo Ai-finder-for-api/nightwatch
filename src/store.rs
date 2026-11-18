@@ -71,7 +71,13 @@ impl Store {
         tx.commit()
     }
 
-    pub fn record_run(&self, source: &str, packets: u64, malformed: u64, findings: usize) -> rusqlite::Result<()> {
+    pub fn record_run(
+        &self,
+        source: &str,
+        packets: u64,
+        malformed: u64,
+        findings: usize,
+    ) -> rusqlite::Result<()> {
         self.conn.execute(
             "INSERT INTO runs (source, packets, malformed, findings) VALUES (?1, ?2, ?3, ?4)",
             params![source, packets as i64, malformed as i64, findings as i64],
@@ -100,7 +106,8 @@ impl Store {
     }
 
     pub fn count(&self) -> rusqlite::Result<i64> {
-        self.conn.query_row("SELECT COUNT(*) FROM findings", [], |r| r.get(0))
+        self.conn
+            .query_row("SELECT COUNT(*) FROM findings", [], |r| r.get(0))
     }
 }
 

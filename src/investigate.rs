@@ -48,7 +48,11 @@ pub fn correlate(findings: &[Finding], gap_us: u64) -> Vec<Incident> {
             incidents.push(build(actor, &group, incidents.len() + 1));
         }
     }
-    incidents.sort_by(|a, b| b.severity.cmp(&a.severity).then(a.first_ts_us.cmp(&b.first_ts_us)));
+    incidents.sort_by(|a, b| {
+        b.severity
+            .cmp(&a.severity)
+            .then(a.first_ts_us.cmp(&b.first_ts_us))
+    });
     for (i, inc) in incidents.iter_mut().enumerate() {
         inc.id = format!("INC-{:04}", i + 1);
     }
@@ -59,9 +63,16 @@ fn build(actor: &str, group: &[&Finding], n: usize) -> Incident {
     let mut rule_ids: Vec<String> = group.iter().map(|f| f.rule_id.clone()).collect();
     rule_ids.sort();
     rule_ids.dedup();
-    let severity = group.iter().map(|f| f.severity).max().unwrap_or(Severity::Info);
+    let severity = group
+        .iter()
+        .map(|f| f.severity)
+        .max()
+        .unwrap_or(Severity::Info);
     // Combined confidence: 1 - prod(1 - c_i), so independent corroborating rules raise confidence.
-    let confidence = 1.0 - group.iter().fold(1.0f32, |acc, f| acc * (1.0 - f.confidence.clamp(0.0, 1.0)));
+    let confidence = 1.0
+        - group
+            .iter()
+            .fold(1.0f32, |acc, f| acc * (1.0 - f.confidence.clamp(0.0, 1.0)));
     Incident {
         id: format!("INC-{n:04}"),
         actor: actor.to_string(),
@@ -73,7 +84,11 @@ fn build(actor: &str, group: &[&Finding], n: usize) -> Incident {
         finding_count: group.len(),
         timeline: group
             .iter()
-            .map(|f| TimelineEntry { ts_us: f.ts_us, rule_id: f.rule_id.clone(), summary: f.summary.clone() })
+            .map(|f| TimelineEntry {
+                ts_us: f.ts_us,
+                rule_id: f.rule_id.clone(),
+                summary: f.summary.clone(),
+            })
             .collect(),
     }
 }
@@ -81,10 +96,17 @@ fn build(actor: &str, group: &[&Finding], n: usize) -> Incident {
 pub fn render_timeline(inc: &Incident) -> String {
     let mut out = format!(
         "{} [{:?}] actor={} confidence={:.2} rules={}\n",
-        inc.id, inc.severity, inc.actor, inc.confidence, inc.rule_ids.join(",")
+        inc.id,
+        inc.severity,
+        inc.actor,
+        inc.confidence,
+        inc.rule_ids.join(",")
     );
     for t in &inc.timeline {
-        out.push_str(&format!("  {:>14}us  {:<8} {}\n", t.ts_us, t.rule_id, t.summary));
+        out.push_str(&format!(
+            "  {:>14}us  {:<8} {}\n",
+            t.ts_us, t.rule_id, t.summary
+        ));
     }
     out
 }

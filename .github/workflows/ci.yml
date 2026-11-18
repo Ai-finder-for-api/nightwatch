@@ -1,7 +1,39 @@
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
 jobs:
+  lint:
+    name: fmt + clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
   test:
+    name: build + test (${{ matrix.os }})
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
@@ -10,5 +42,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --all
-      - run: cargo run -- info
+      - uses: Swatinem/rust-cache@v2
+      - name: Build (release)
+        run: cargo build --locked --release
+      - name: Test
+        run: cargo test --locked --all-targets
+      - name: Smoke test CLI on synthetic PCAP fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN=target/release/nightwatch
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" info
+          "$BIN" analyze fixtures/sample_attacks.pcap --db ci.db --json ci_findings.json
+          "$BIN" report --db ci.db --out ci_report.json
+          test -s ci_findings.json
+          test -s ci_report.json
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightwatch-${{ matrix.os }}
+          path: |
+            target/release/nightwatch
+            target/release/nightwatch.exe
+          if-no-files-found: ignore
+
+  msrv:
+    name: MSRV (1.85)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --locked --all-targets
+
+  package:
+    name: crates.io package check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo package --locked --list
+      - run: cargo publish --locked --dry-run

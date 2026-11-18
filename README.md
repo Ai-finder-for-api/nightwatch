@@ -1,5 +1,7 @@
 # NIGHTWATCH — Network Threat Detection Engine
 
+[![CI](https://github.com/Ai-finder-for-api/nightwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Ai-finder-for-api/nightwatch/actions/workflows/ci.yml) [![crates.io](https://img.shields.io/crates/v/nightwatch-ids.svg)](https://crates.io/crates/nightwatch-ids) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A passive, modular network security engine in Rust (stable) with a Tokio pipeline and SQLite storage.
 It decodes captured traffic, runs declarative detection rules, stores findings, correlates them into
 incidents and exports JSON. It never transmits packets or probes external systems.
@@ -86,3 +88,29 @@ nightwatch unseal report.sealed
 nightwatch info
 ```
 Caveats: qs_crypt states it is not independently audited and its repo has no license file, so check licensing before redistributing. Live capture is still not implemented on any OS (Windows would need Npcap). Key files are unencrypted at rest.
+
+
+## Installation
+
+```bash
+# from crates.io (package name differs because `nightwatch` is taken; the binary is still `nightwatch`)
+cargo install nightwatch-ids
+# or from source
+cargo install --git https://github.com/Ai-finder-for-api/nightwatch
+```
+
+A C compiler is required (the vendored qs_crypt library is built by `build.rs`): gcc/clang on Linux/macOS, MSVC Build Tools on Windows. Minimum supported Rust version: **1.85**.
+
+## Continuous integration & releases
+
+- `.github/workflows/ci.yml` runs on every push/PR: `cargo fmt --check`, `cargo clippy -D warnings`, release build + tests + a CLI smoke test (analyze the synthetic PCAP fixture, export a report) on Ubuntu, Windows and macOS, an MSRV check (1.85), and `cargo publish --dry-run` to keep the crate publishable. Built binaries are uploaded as workflow artifacts.
+- `.github/workflows/release.yml` publishes to crates.io when a `vX.Y.Z` tag matching `Cargo.toml`'s version is pushed, then creates a GitHub release.
+
+To release:
+1. Create a crates.io API token (Account Settings -> API Tokens, scopes `publish-new`, `publish-update`) and add it as the repository secret `CARGO_REGISTRY_TOKEN`.
+2. Bump `version` in `Cargo.toml`, update `CHANGELOG.md`, commit.
+3. `git tag v0.1.0 && git push origin v0.1.0`.
+
+## License
+
+NIGHTWATCH is MIT licensed (see `LICENSE`). The vendored `vendor/qs_crypt` sources come from https://github.com/ai-finder-for-api/qs_crypt, which currently ships without a licence file; confirm its licensing before publishing to crates.io.

@@ -7,7 +7,20 @@ use std::net::Ipv4Addr;
 
 fn checksum_free_ipv4(src: Ipv4Addr, dst: Ipv4Addr, proto: u8, payload: &[u8]) -> Vec<u8> {
     let total = 20 + payload.len();
-    let mut ip = vec![0x45, 0, (total >> 8) as u8, total as u8, 0, 1, 0, 0, 64, proto, 0, 0];
+    let mut ip = vec![
+        0x45,
+        0,
+        (total >> 8) as u8,
+        total as u8,
+        0,
+        1,
+        0,
+        0,
+        64,
+        proto,
+        0,
+        0,
+    ];
     ip.extend_from_slice(&src.octets());
     ip.extend_from_slice(&dst.octets());
     ip.extend_from_slice(payload);
@@ -43,13 +56,22 @@ pub fn udp_frame(src: Ipv4Addr, dst: Ipv4Addr, sport: u16, dport: u16, payload: 
 }
 
 pub fn icmp_frame(src: Ipv4Addr, dst: Ipv4Addr, icmp_type: u8) -> Vec<u8> {
-    ethernet(checksum_free_ipv4(src, dst, 1, &[icmp_type, 0, 0, 0, 0, 0, 0, 0]))
+    ethernet(checksum_free_ipv4(
+        src,
+        dst,
+        1,
+        &[icmp_type, 0, 0, 0, 0, 0, 0, 0],
+    ))
 }
 
 /// DNS query (or NXDOMAIN response) for a dotted name, as a UDP payload.
 pub fn dns_payload(name: &str, response: bool, rcode: u8) -> Vec<u8> {
     let mut m = vec![0x12, 0x34];
-    let flags: u16 = if response { 0x8180 | rcode as u16 } else { 0x0100 };
+    let flags: u16 = if response {
+        0x8180 | rcode as u16
+    } else {
+        0x0100
+    };
     m.extend_from_slice(&flags.to_be_bytes());
     m.extend_from_slice(&[0, 1, 0, 0, 0, 0, 0, 0]);
     for label in name.split('.').filter(|l| !l.is_empty()) {
@@ -62,7 +84,10 @@ pub fn dns_payload(name: &str, response: bool, rcode: u8) -> Vec<u8> {
 }
 
 pub fn dns_query(src: Ipv4Addr, dst: Ipv4Addr, ts_us: u64, name: &str) -> Record {
-    Record { ts_us, data: udp_frame(src, dst, 40000, 53, &dns_payload(name, false, 0)) }
+    Record {
+        ts_us,
+        data: udp_frame(src, dst, 40000, 53, &dns_payload(name, false, 0)),
+    }
 }
 
 /// A capture mixing benign traffic with each attack pattern the default rules detect.
@@ -80,18 +105,39 @@ pub fn sample_capture() -> Vec<Record> {
 
     // Benign: established web session and normal DNS.
     for i in 0..5u16 {
-        push(&mut out, tcp_frame(client, web, 50000 + i, 443, TCP_SYN), 10_000);
-        push(&mut out, tcp_frame(web, client, 443, 50000 + i, TCP_SYN | TCP_ACK), 10_000);
+        push(
+            &mut out,
+            tcp_frame(client, web, 50000 + i, 443, TCP_SYN),
+            10_000,
+        );
+        push(
+            &mut out,
+            tcp_frame(web, client, 443, 50000 + i, TCP_SYN | TCP_ACK),
+            10_000,
+        );
     }
     let ts = out.last().map(|r| r.ts_us).unwrap_or(1_700_000_000_000_000) + 1000;
-    out.push(dns_query(client, Ipv4Addr::new(10, 0, 0, 1), ts, "www.example.com"));
+    out.push(dns_query(
+        client,
+        Ipv4Addr::new(10, 0, 0, 1),
+        ts,
+        "www.example.com",
+    ));
     // Horizontal port scan: SYN to 30 distinct ports within a few seconds.
     for port in 1..=30u16 {
-        push(&mut out, tcp_frame(attacker, target, 41000, port, TCP_SYN), 100_000);
+        push(
+            &mut out,
+            tcp_frame(attacker, target, 41000, port, TCP_SYN),
+            100_000,
+        );
     }
     // Failed SSH brute force: target answers each attempt with RST.
     for i in 0..12u16 {
-        push(&mut out, tcp_frame(target, client, 22, 52000 + i, TCP_RST | TCP_ACK), 2_000_000);
+        push(
+            &mut out,
+            tcp_frame(target, client, 22, 52000 + i, TCP_RST | TCP_ACK),
+            2_000_000,
+        );
     }
     // DNS tunnelling-style long query name.
     let long = format!("{}.{}.exfil.example.net", "a".repeat(50), "b".repeat(50));
@@ -103,4 +149,3 @@ pub fn sample_capture() -> Vec<Record> {
     }
     out
 }
-

@@ -1,10 +1,33 @@
 [package]
-name = "nightwatch"
+# The crates.io name "nightwatch" is already taken, so the package is published
+# as `nightwatch-ids`; the library and binary are still called `nightwatch`.
+name = "nightwatch-ids"
 version = "0.1.0"
 edition = "2021"
-description = "NIGHTWATCH - passive network threat detection engine"
+rust-version = "1.85"
+authors = ["Ai-finder-for-api"]
+description = "NIGHTWATCH - passive network threat detection engine (PCAP analysis, declarative rules, SQLite event store)"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Ai-finder-for-api/nightwatch"
+homepage = "https://github.com/Ai-finder-for-api/nightwatch"
+documentation = "https://docs.rs/nightwatch-ids"
+keywords = ["security", "ids", "network", "pcap", "detection"]
+categories = ["network-programming", "command-line-utilities"]
 build = "build.rs"
+include = [
+    "/src/**",
+    "/tests/**",
+    "/rules/**",
+    "/fixtures/**",
+    "/vendor/qs_crypt/include/**",
+    "/vendor/qs_crypt/src/**",
+    "/vendor/qs_crypt/README.nightwatch.md",
+    "/build.rs",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+]
 
 [lib]
 name = "nightwatch"

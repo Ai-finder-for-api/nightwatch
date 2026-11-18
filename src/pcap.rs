@@ -57,9 +57,18 @@ impl<R: Read> PcapReader<R> {
         };
         let rd = |o: usize| {
             let b = [h[o], h[o + 1], h[o + 2], h[o + 3]];
-            if big_endian { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) }
+            if big_endian {
+                u32::from_be_bytes(b)
+            } else {
+                u32::from_le_bytes(b)
+            }
         };
-        let header = Header { link_type: rd(20), snaplen: rd(16), big_endian, nanos };
+        let header = Header {
+            link_type: rd(20),
+            snaplen: rd(16),
+            big_endian,
+            nanos,
+        };
         Ok(Self { inner, header })
     }
 
@@ -71,7 +80,11 @@ impl<R: Read> PcapReader<R> {
         }
         let rd = |o: usize| {
             let b = [rh[o], rh[o + 1], rh[o + 2], rh[o + 3]];
-            if self.header.big_endian { u32::from_be_bytes(b) } else { u32::from_le_bytes(b) }
+            if self.header.big_endian {
+                u32::from_be_bytes(b)
+            } else {
+                u32::from_le_bytes(b)
+            }
         };
         let (secs, frac, incl) = (rd(0) as u64, rd(4) as u64, rd(8) as usize);
         // Refuse absurd record sizes to avoid unbounded allocation on hostile input.

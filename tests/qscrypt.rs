@@ -2,8 +2,14 @@ use nightwatch::qscrypt::*;
 
 #[test]
 fn sha3_256_known_answer() {
-    assert_eq!(sha3_256_hex(b"abc").unwrap(), "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
-    assert_eq!(sha3_256_hex(b"").unwrap(), "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+    assert_eq!(
+        sha3_256_hex(b"abc").unwrap(),
+        "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+    );
+    assert_eq!(
+        sha3_256_hex(b"").unwrap(),
+        "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
+    );
 }
 
 #[test]

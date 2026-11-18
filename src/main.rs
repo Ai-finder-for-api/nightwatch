@@ -7,7 +7,11 @@ use nightwatch::store::Store;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "nightwatch", version, about = "Passive network threat detection engine")]
+#[command(
+    name = "nightwatch",
+    version,
+    about = "Passive network threat detection engine"
+)]
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
@@ -101,15 +105,37 @@ enum RulesCmd {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
-        Cmd::Analyze { pcap, rules, db, queue, json } => {
-            let set = RuleSet::parse(&std::fs::read_to_string(&rules).with_context(|| format!("reading {}", rules.display()))?)?;
+        Cmd::Analyze {
+            pcap,
+            rules,
+            db,
+            queue,
+            json,
+        } => {
+            let set = RuleSet::parse(
+                &std::fs::read_to_string(&rules)
+                    .with_context(|| format!("reading {}", rules.display()))?,
+            )?;
             let report = analyze_pcap(pcap.clone(), set, queue).await?;
             let mut store = Store::open(&db)?;
             store.insert_findings(&pcap.display().to_string(), &report.findings)?;
-            store.record_run(&pcap.display().to_string(), report.packets, report.malformed, report.findings.len())?;
-            println!("packets={} malformed={} findings={}", report.packets, report.malformed, report.findings.len());
+            store.record_run(
+                &pcap.display().to_string(),
+                report.packets,
+                report.malformed,
+                report.findings.len(),
+            )?;
+            println!(
+                "packets={} malformed={} findings={}",
+                report.packets,
+                report.malformed,
+                report.findings.len()
+            );
             for f in &report.findings {
-                println!("[{:?}] {} {} - {}", f.severity, f.rule_id, f.title, f.summary);
+                println!(
+                    "[{:?}] {} {} - {}",
+                    f.severity, f.rule_id, f.title, f.summary
+                );
             }
             if let Some(path) = json {
                 std::fs::write(&path, serde_json::to_string_pretty(&report.findings)?)?;
@@ -117,7 +143,10 @@ async fn main() -> Result<()> {
             }
         }
         Cmd::Monitor { iface } => {
-            bail!("live capture on {:?} is not supported in this build; use `analyze` on a PCAP file", iface);
+            bail!(
+                "live capture on {:?} is not supported in this build; use `analyze` on a PCAP file",
+                iface
+            );
         }
         Cmd::Rules { cmd } => match cmd {
             RulesCmd::Validate { file } => {
@@ -127,12 +156,27 @@ async fn main() -> Result<()> {
             RulesCmd::List { file } => {
                 let set = RuleSet::parse(&std::fs::read_to_string(&file)?)?;
                 for r in &set.rules {
-                    println!("{:<8} {:<8} {:<7} conf={:.2} enabled={} {}", r.id, format!("{:?}", r.severity), kind_name(&r.kind), r.confidence, r.enabled, r.title);
+                    println!(
+                        "{:<8} {:<8} {:<7} conf={:.2} enabled={} {}",
+                        r.id,
+                        format!("{:?}", r.severity),
+                        kind_name(&r.kind),
+                        r.confidence,
+                        r.enabled,
+                        r.title
+                    );
                 }
             }
-            RulesCmd::Watch { file, interval_secs } => {
+            RulesCmd::Watch {
+                file,
+                interval_secs,
+            } => {
                 let mut store = RuleStore::load(&file)?;
-                println!("watching {} ({} rules)", file.display(), store.current.rules.len());
+                println!(
+                    "watching {} ({} rules)",
+                    file.display(),
+                    store.current.rules.len()
+                );
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
                     match store.reload_if_changed() {
@@ -150,7 +194,10 @@ async fn main() -> Result<()> {
                 println!("{}", serde_json::to_string_pretty(&findings)?);
             } else {
                 for f in &findings {
-                    println!("{:>14}us [{:?}] {} {} - {}", f.ts_us, f.severity, f.rule_id, f.actor, f.summary);
+                    println!(
+                        "{:>14}us [{:?}] {} {} - {}",
+                        f.ts_us, f.severity, f.rule_id, f.actor, f.summary
+                    );
                 }
                 println!("{} alerts", findings.len());
             }
@@ -163,13 +210,22 @@ async fn main() -> Result<()> {
             }
             println!("{} incidents", incidents.len());
         }
-        Cmd::Report { db, out, gap_secs, seal, key } => {
+        Cmd::Report {
+            db,
+            out,
+            gap_secs,
+            seal,
+            key,
+        } => {
             let store = Store::open(&db)?;
             let findings = store.all_findings()?;
             let incidents = correlate(&findings, gap_secs * 1_000_000);
             let doc = serde_json::json!({ "generator": "nightwatch", "finding_count": findings.len(), "findings": findings, "incidents": incidents });
             let text = serde_json::to_string_pretty(&doc)?;
-            println!("sha3-256 {}", nightwatch::qscrypt::sha3_256_hex(text.as_bytes())?);
+            println!(
+                "sha3-256 {}",
+                nightwatch::qscrypt::sha3_256_hex(text.as_bytes())?
+            );
             if seal {
                 let k = load_key(key)?;
                 std::fs::write(&out, k.seal(text.as_bytes())?)?;
@@ -190,7 +246,11 @@ async fn main() -> Result<()> {
             println!("{}", String::from_utf8_lossy(&pt));
         }
         Cmd::Info => {
-            println!("os={} arch={}", nightwatch::platform::OS, std::env::consts::ARCH);
+            println!(
+                "os={} arch={}",
+                nightwatch::platform::OS,
+                std::env::consts::ARCH
+            );
             println!("crypto={}", nightwatch::qscrypt::build_info());
             println!("data_dir={}", nightwatch::platform::data_dir().display());
             println!("interfaces={:?}", nightwatch::platform::list_interfaces());
@@ -207,7 +267,8 @@ async fn main() -> Result<()> {
 
 fn load_key(key: Option<PathBuf>) -> Result<nightwatch::qscrypt::Key> {
     let path = key.unwrap_or_else(nightwatch::platform::default_key_path);
-    let raw = std::fs::read(&path).with_context(|| format!("reading key {} (run `nightwatch keygen`)", path.display()))?;
+    let raw = std::fs::read(&path)
+        .with_context(|| format!("reading key {} (run `nightwatch keygen`)", path.display()))?;
     nightwatch::qscrypt::Key::from_bytes(&raw)
 }
 
