@@ -18,3 +18,5 @@ pub mod pcap;
 pub mod pipeline;
 pub mod rules;
 pub mod store;
+pub mod crypto;
+pub mod capture;

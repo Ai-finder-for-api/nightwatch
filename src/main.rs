@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use nightwatch::investigate::{correlate, render_timeline};
 use nightwatch::pipeline::analyze_pcap;
@@ -28,10 +28,19 @@ enum Cmd {
         #[arg(long)]
         json: Option<PathBuf>,
     },
-    /// Live capture on an interface. Not available in this build (no libpcap/raw-socket backend).
+    /// List local capture interfaces (requires Wireshark dumpcap).
+    Interfaces { #[arg(long)] dumpcap: Option<PathBuf> },
+    /// Analyze a bounded passive capture; stop at the first time or packet limit.
     Monitor {
         #[arg(long)]
-        iface: Option<String>,
+        iface: u32,
+        #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u32).range(1..=3600))]
+        seconds: u32,
+        #[arg(long, default_value_t = 10000, value_parser = clap::value_parser!(u32).range(1..=1000000))]
+        count: u32,
+        #[arg(long)] dumpcap: Option<PathBuf>,
+        #[arg(long, default_value = "rules/default.json")] rules: PathBuf,
+        #[arg(long, default_value = "nightwatch.db")] db: String,
     },
     /// Rule management.
     Rules {
@@ -98,8 +107,15 @@ async fn main() -> Result<()> {
                 println!("wrote {}", path.display());
             }
         }
-        Cmd::Monitor { iface } => {
-            bail!("live capture on {:?} is not supported in this build; use `analyze` on a PCAP file", iface);
+        Cmd::Interfaces { dumpcap } => nightwatch::capture::interfaces(dumpcap)?,
+        Cmd::Monitor { iface, seconds, count, rules, db, dumpcap } => {
+            let rules = RuleSet::parse(&std::fs::read_to_string(&rules)?)?;
+            let source = format!("interface:{iface}");
+            let mut store = Store::open(&db)?;
+            let r = nightwatch::capture::monitor(dumpcap, iface, seconds, count, rules).await?;
+            store.insert_findings(&source, &r.findings)?;
+            store.record_run(&source, r.packets, r.malformed, r.findings.len())?;
+            println!("packets={} malformed={} findings={}", r.packets, r.malformed, r.findings.len());
         }
         Cmd::Rules { cmd } => match cmd {
             RulesCmd::Validate { file } => {
@@ -150,8 +166,10 @@ async fn main() -> Result<()> {
             let findings = store.all_findings()?;
             let incidents = correlate(&findings, gap_secs * 1_000_000);
             let doc = serde_json::json!({ "generator": "nightwatch", "finding_count": findings.len(), "findings": findings, "incidents": incidents });
-            std::fs::write(&out, serde_json::to_string_pretty(&doc)?)?;
-            println!("wrote {}", out.display());
+            let bytes = serde_json::to_vec_pretty(&doc)?;
+            let digest = nightwatch::crypto::sha256_hex(&bytes)?;
+            std::fs::write(&out, bytes)?;
+            println!("sha256={digest}  {}", out.display());
         }
         Cmd::GenFixtures { out } => {
             let recs = nightwatch::fixtures::sample_capture();

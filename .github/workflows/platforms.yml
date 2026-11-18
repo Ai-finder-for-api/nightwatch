@@ -1,0 +1,22 @@
+name: Native platform tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - run: cargo +stable test --locked
+      - run: cargo +stable build --locked --release
+      - if: runner.os == 'Windows'
+        run: python qa/smoke.py target/release/nightwatch.exe
+      - if: runner.os == 'Linux'
+        run: python3 qa/smoke.py target/release/nightwatch

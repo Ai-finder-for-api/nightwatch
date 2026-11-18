@@ -5,8 +5,49 @@ It decodes captured traffic, runs declarative detection rules, stores findings, 
 incidents and exports JSON. It never transmits packets or probes external systems.
 
 ## Build and test
-    cargo build --release
-    cargo test
+From the repository root, with Git, Rust stable and a C11 compiler:
+
+    git submodule update --init --recursive
+    cargo build --release --locked
+    cargo test --locked
+
+Windows x64: install the Rust MSVC toolchain and Visual Studio 2022 Build Tools
+(Desktop development with C++ and a Windows SDK). Run the commands above from
+Developer PowerShell. The executable is `target\release\nightwatch.exe`.
+Linux: install GCC or Clang and libc development headers. The binary is
+`target/release/nightwatch`. SQLite and the qs_crypt hash backend are linked
+at build time; offline analysis and reports need no packet driver.
+
+## Passive interface capture (Windows and Linux)
+Install Wireshark 4.4+ with dumpcap; on Windows also install Npcap. On Linux,
+use your distribution's supported non-root capture permission setup for dumpcap.
+Do not grant the entire NIGHTWATCH executable elevated privileges. From the
+repo root (PowerShell example):
+
+    .\target\release\nightwatch.exe interfaces
+    .\target\release\nightwatch.exe monitor --iface 1 --seconds 30 --count 5000
+    .\target\release\nightwatch.exe report --out report.json
+    (Get-FileHash -Algorithm SHA256 report.json).Hash
+
+On Linux use `./target/release/nightwatch` with the same arguments, then
+`sha256sum report.json`. Choose the index printed for your authorized Ethernet
+or raw-IP adapter; do not assume 1 is the intended interface. Both live commands
+accept `--dumpcap` with an absolute path to a trusted installation if outside
+`%ProgramFiles%\Wireshark` or `/usr/bin`. No shell, packet injection, name
+resolution, or promiscuous capture is requested. Capture stops at the first
+limit (default 60 seconds or 10,000 frames). Findings are stored after successful
+completion, not continuously. Ctrl-C aborts rather than committing a partial run.
+Linux `any` (cooked capture) and Npcap loopback/null link types are not supported.
+
+## Report fingerprints
+`report --out` prints the lowercase SHA-256 of the precise JSON bytes it writes.
+The Rust wrapper calls the public `qsc_hash` API through a small C adapter;
+Cargo builds the pinned [qs_crypt](https://github.com/Ai-finder-for-api/qs_crypt)
+submodule with the target C compiler. No binary downloads during build, DLL
+search path, or experimental primitives. Linux already has pthread/getrandom
+support upstream; Windows uses the Windows SDK/bcrypt. This first integration
+is deliberately **not** report encryption, authentication, or database protection.
+Retain the digest separately in a trusted location if comparing exports later.
 
 ## Quick start (offline analysis)
     nightwatch gen-fixtures fixtures/sample_attacks.pcap
@@ -21,7 +62,7 @@ incidents and exports JSON. It never transmits packets or probes external system
 | Command | Purpose |
 |---|---|
 | `analyze <pcap>` | Offline PCAP analysis, stores findings in SQLite, optional JSON export |
-| `monitor --iface` | Live capture. **Not implemented in this build** (reports an error; no libpcap/raw-socket backend) |
+| `interfaces` / `monitor --iface <index>` | List interfaces / passively analyze a bounded capture through dumpcap |
 | `rules validate|list|watch` | Rule management and hot reload |
 | `alerts [--json]` | List stored alerts |
 | `incidents [--gap-secs]` | Correlated incidents with timelines |
@@ -62,8 +103,12 @@ Kinds: `port_scan`, `failed_connections`, `dns_anomaly`, `packet_threshold` (see
 synthetic capture, benign traffic produces no findings, PCAP write/read round trip through the async pipeline,
 and rule validation.
 
-## Limitations (honest status)
-- Live interface capture is not implemented; `monitor` returns an explicit error. Offline PCAP analysis is complete.
+The Windows/Linux CI recipe runs the Rust suite and `qa/smoke.py`, which exercises
+the monitor child-process interface with fixture bytes, rejects a failed capture,
+and compares the report fingerprint with Python hashlib. It does not test Npcap drivers.
+
+## Limitations
+- Live capture depends on capture-driver permissions and a supported adapter link type.
 - Benchmarks are not included yet.
 - DNS names with labels longer than 63 bytes are rejected by the parser (RFC-invalid); such queries are not
   scored by DNS rules.

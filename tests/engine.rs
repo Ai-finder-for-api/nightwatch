@@ -81,3 +81,14 @@ fn rule_validation_rejects_bad_rules() {
       {"id":"X","title":"t","enabled":true,"severity":"low","confidence":0.5,"kind":"port_scan","distinct_ports":5,"window_secs":10}]}"#;
     assert!(RuleSet::parse(dup).is_err());
 }
+
+#[test]
+fn incomplete_capture_is_not_reported_as_success() {
+    let mut bytes = Vec::new();
+    write_pcap(&mut bytes, LINKTYPE_ETHERNET, &[Record { ts_us: 0, data: vec![42; 12] }]).unwrap();
+    for cut in [25, 39, 40, 51] {
+        assert!(PcapReader::new(&bytes[..cut]).unwrap().next_record().is_err());
+    }
+    bytes[32..36].copy_from_slice(&u32::MAX.to_le_bytes());
+    assert!(PcapReader::new(&bytes[..]).unwrap().next_record().is_err());
+}

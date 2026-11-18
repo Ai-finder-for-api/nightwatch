@@ -1,6 +1,6 @@
 //! Classic libpcap file reader/writer (offline analysis and synthetic fixtures).
 //! Reads both byte orders and micro/nanosecond timestamps. Truncated records
-//! end the stream cleanly instead of panicking.
+//! return an error instead of silently accepting a partial capture.
 
 use std::io::{self, Read, Write};
 
@@ -63,7 +63,7 @@ impl<R: Read> PcapReader<R> {
         Ok(Self { inner, header })
     }
 
-    /// Returns Ok(None) at clean EOF or on a truncated trailing record.
+    /// Returns Ok(None) only at a clean record boundary.
     pub fn next_record(&mut self) -> Result<Option<Record>, PcapError> {
         let mut rh = [0u8; 16];
         if !read_full(&mut self.inner, &mut rh)? {
@@ -76,23 +76,22 @@ impl<R: Read> PcapReader<R> {
         let (secs, frac, incl) = (rd(0) as u64, rd(4) as u64, rd(8) as usize);
         // Refuse absurd record sizes to avoid unbounded allocation on hostile input.
         if incl > 262_144 {
-            return Ok(None);
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "oversized PCAP record").into());
         }
         let mut data = vec![0u8; incl];
-        if !read_full(&mut self.inner, &mut data)? {
-            return Ok(None);
-        }
+        self.inner.read_exact(&mut data)?;
         let ts_us = secs * 1_000_000 + if self.header.nanos { frac / 1000 } else { frac };
         Ok(Some(Record { ts_us, data }))
     }
 }
 
-/// Fills buf entirely; Ok(false) if EOF occurs before that.
+/// Fills header entirely; Ok(false) only if EOF precedes its first byte.
 fn read_full<R: Read>(r: &mut R, buf: &mut [u8]) -> Result<bool, PcapError> {
     let mut got = 0;
     while got < buf.len() {
         match r.read(&mut buf[got..]) {
-            Ok(0) => return Ok(false),
+            Ok(0) if got == 0 => return Ok(false),
+            Ok(0) => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "partial PCAP record header")),
             Ok(n) => got += n,
             Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
             Err(e) => return Err(e.into()),

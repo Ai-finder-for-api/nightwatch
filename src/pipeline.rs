@@ -7,7 +7,7 @@ use crate::parse::{parse_frame, Packet};
 use crate::pcap::PcapReader;
 use crate::rules::RuleSet;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
@@ -19,11 +19,15 @@ pub struct PipelineReport {
 }
 
 pub async fn analyze_pcap(path: PathBuf, rules: RuleSet, queue_capacity: usize) -> anyhow::Result<PipelineReport> {
+    analyze_stream(File::open(path)?, rules, queue_capacity).await
+}
+
+pub async fn analyze_stream<R: Read + Send + 'static>(stream: R, rules: RuleSet, queue_capacity: usize) -> anyhow::Result<PipelineReport> {
     let (tx, mut rx) = mpsc::channel::<Packet>(queue_capacity.max(1));
     let reader = tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
-        let file = File::open(&path)?;
-        let mut pr = PcapReader::new(BufReader::new(file))?;
+        let mut pr = PcapReader::new(BufReader::new(stream))?;
         let link = pr.header.link_type;
+        anyhow::ensure!(matches!(link, crate::parse::LINKTYPE_ETHERNET | crate::parse::LINKTYPE_RAW), "unsupported PCAP link type {link}; select an Ethernet or raw-IP interface");
         let mut malformed = 0u64;
         while let Some(rec) = pr.next_record()? {
             match parse_frame(rec.ts_us, &rec.data, link) {

@@ -220,6 +220,7 @@ name = "nightwatch"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cc",
  "clap",
  "rusqlite",
  "serde",
