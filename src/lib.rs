@@ -8,6 +8,8 @@
 //! - `store`     SQLite event storage
 //! - `investigate` incident correlation, timelines, JSON export
 //! - `pipeline`  Tokio pipeline: reader -> bounded queue -> detector
+//! - `qscrypt`   FFI wrapper for the vendored qs_crypt C library (hash, sealed reports)
+//! - `platform`  Linux / macOS / Windows paths, key files, entropy
 //! - `fixtures`  synthetic PCAP generation for tests and demos
 
 pub mod detect;
@@ -16,5 +18,7 @@ pub mod investigate;
 pub mod parse;
 pub mod pcap;
 pub mod pipeline;
+pub mod platform;
+pub mod qscrypt;
 pub mod rules;
 pub mod store;

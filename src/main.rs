@@ -60,7 +60,25 @@ enum Cmd {
         out: PathBuf,
         #[arg(long, default_value_t = 600)]
         gap_secs: u64,
+        /// Encrypt+authenticate the report with qs_crypt (ChaCha20-Poly1305) using the key file.
+        #[arg(long)]
+        seal: bool,
+        #[arg(long)]
+        key: Option<PathBuf>,
     },
+    /// Generate a 256-bit report key file (mode 0600 on Unix; per-user %APPDATA% on Windows).
+    Keygen {
+        #[arg(long)]
+        key: Option<PathBuf>,
+    },
+    /// Decrypt and verify a sealed report; prints JSON to stdout.
+    Unseal {
+        file: PathBuf,
+        #[arg(long)]
+        key: Option<PathBuf>,
+    },
+    /// Show platform, crypto backend and capture interfaces.
+    Info,
     /// Write the synthetic sample capture to a PCAP file.
     GenFixtures { out: PathBuf },
 }
@@ -145,13 +163,37 @@ async fn main() -> Result<()> {
             }
             println!("{} incidents", incidents.len());
         }
-        Cmd::Report { db, out, gap_secs } => {
+        Cmd::Report { db, out, gap_secs, seal, key } => {
             let store = Store::open(&db)?;
             let findings = store.all_findings()?;
             let incidents = correlate(&findings, gap_secs * 1_000_000);
             let doc = serde_json::json!({ "generator": "nightwatch", "finding_count": findings.len(), "findings": findings, "incidents": incidents });
-            std::fs::write(&out, serde_json::to_string_pretty(&doc)?)?;
-            println!("wrote {}", out.display());
+            let text = serde_json::to_string_pretty(&doc)?;
+            println!("sha3-256 {}", nightwatch::qscrypt::sha3_256_hex(text.as_bytes())?);
+            if seal {
+                let k = load_key(key)?;
+                std::fs::write(&out, k.seal(text.as_bytes())?)?;
+                println!("wrote sealed report {}", out.display());
+            } else {
+                std::fs::write(&out, text)?;
+                println!("wrote {}", out.display());
+            }
+        }
+        Cmd::Keygen { key } => {
+            let path = key.unwrap_or_else(nightwatch::platform::default_key_path);
+            nightwatch::platform::write_secret(&path, &nightwatch::qscrypt::random_key_bytes()?)?;
+            println!("wrote key {}", path.display());
+        }
+        Cmd::Unseal { file, key } => {
+            let k = load_key(key)?;
+            let pt = k.open(&std::fs::read(&file)?)?;
+            println!("{}", String::from_utf8_lossy(&pt));
+        }
+        Cmd::Info => {
+            println!("os={} arch={}", nightwatch::platform::OS, std::env::consts::ARCH);
+            println!("crypto={}", nightwatch::qscrypt::build_info());
+            println!("data_dir={}", nightwatch::platform::data_dir().display());
+            println!("interfaces={:?}", nightwatch::platform::list_interfaces());
         }
         Cmd::GenFixtures { out } => {
             let recs = nightwatch::fixtures::sample_capture();
@@ -161,6 +203,12 @@ async fn main() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn load_key(key: Option<PathBuf>) -> Result<nightwatch::qscrypt::Key> {
+    let path = key.unwrap_or_else(nightwatch::platform::default_key_path);
+    let raw = std::fs::read(&path).with_context(|| format!("reading key {} (run `nightwatch keygen`)", path.display()))?;
+    nightwatch::qscrypt::Key::from_bytes(&raw)
 }
 
 fn kind_name(k: &nightwatch::rules::RuleKind) -> &'static str {

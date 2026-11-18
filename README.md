@@ -69,3 +69,20 @@ and rule validation.
   scored by DNS rules.
 - Rule reload is via `rules watch` (polling) and `RuleStore`/`Engine::reload` in the library; the analysis
   command loads rules at start.
+
+## Platform support and qs_crypt (new)
+
+NIGHTWATCH now targets **Linux, Windows and macOS** (offline PCAP analysis on all three; CI matrix in `.github/workflows/ci.yml`).
+Windows CI has not been run yet from here; only Linux was built and tested locally.
+
+- `src/platform.rs`: per-OS data dir (`%APPDATA%\nightwatch`, `$XDG_DATA_HOME`, macOS Application Support), key files (0600 on Unix, read-only on Windows), OS entropy, interface listing (Linux `/sys/class/net`).
+- `src/qscrypt.rs` + `build.rs`: [qs_crypt](https://github.com/ai-finder-for-api/qs_crypt) is vendored in `vendor/qs_crypt` and compiled with the `cc` crate. Linux links pthread; Windows links `bcrypt`. qs_crypt's own code already had POSIX paths (getrandom, pthread), so the port needed only the build integration, no C changes (the vendored copy is unmodified).
+- Uses: SHA3-256 digest printed for every report; `report --seal` encrypts and authenticates the JSON with ChaCha20-Poly1305 (algorithm bound into the container); `unseal` verifies and decrypts; `keygen` creates the key file.
+
+```
+nightwatch keygen
+nightwatch report --db nightwatch.db --out report.sealed --seal
+nightwatch unseal report.sealed
+nightwatch info
+```
+Caveats: qs_crypt states it is not independently audited and its repo has no license file, so check licensing before redistributing. Live capture is still not implemented on any OS (Windows would need Npcap). Key files are unencrypted at rest.
