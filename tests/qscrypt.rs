@@ -1,14 +1,20 @@
-use nightwatch::qscrypt::*;
+use nightwatch_ndr::qscrypt::*;
 
 #[test]
 fn sha3_256_known_answer() {
-    assert_eq!(sha3_256_hex(b"abc").unwrap(), "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
-    assert_eq!(sha3_256_hex(b"").unwrap(), "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a");
+    assert_eq!(
+        sha3_256_hex(b"abc").unwrap(),
+        "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"
+    );
+    assert_eq!(
+        sha3_256_hex(b"").unwrap(),
+        "a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"
+    );
 }
 
 #[test]
 fn seal_open_roundtrip_and_tamper() {
-    let k = Key::from_bytes(&nightwatch::platform::os_random(KEY_LEN).unwrap()).unwrap();
+    let k = Key::from_bytes(&nightwatch_ndr::platform::os_random(KEY_LEN).unwrap()).unwrap();
     let msg = br#"{"findings":[]}"#;
     let mut boxed = k.seal(msg).unwrap();
     assert_ne!(&boxed[..], &msg[..]);
@@ -30,6 +36,6 @@ fn wrong_key_and_bad_length_rejected() {
 
 #[test]
 fn platform_paths() {
-    assert!(nightwatch::platform::data_dir().ends_with("nightwatch"));
-    assert_eq!(nightwatch::platform::os_random(16).unwrap().len(), 16);
+    assert!(nightwatch_ndr::platform::data_dir().ends_with("nightwatch"));
+    assert_eq!(nightwatch_ndr::platform::os_random(16).unwrap().len(), 16);
 }

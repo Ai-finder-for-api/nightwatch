@@ -8,41 +8,56 @@ use std::time::SystemTime;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Severity { Info, Low, Medium, High, Critical }
+pub enum Severity {
+    Info,
+    Low,
+    Medium,
+    High,
+    Critical,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum RuleKind {
     /// One source touching many distinct destination ports (or hosts) within a window.
     PortScan {
-        #[serde(default = "default_proto")] protocol: String,
+        #[serde(default = "default_proto")]
+        protocol: String,
         distinct_ports: usize,
         window_secs: u64,
-        #[serde(default)] by_host: bool,
+        #[serde(default)]
+        by_host: bool,
     },
     /// Many failed TCP connection attempts (RST or unanswered SYN) from one source to one destination.
     FailedConnections {
         threshold: usize,
         window_secs: u64,
-        #[serde(default)] dst_port: Option<u16>,
+        #[serde(default)]
+        dst_port: Option<u16>,
     },
     /// Unusual DNS: over-long query names, high NXDOMAIN rate, or excessive query volume.
     DnsAnomaly {
-        #[serde(default)] max_qname_len: Option<usize>,
-        #[serde(default)] max_nxdomain: Option<usize>,
-        #[serde(default)] max_queries: Option<usize>,
+        #[serde(default)]
+        max_qname_len: Option<usize>,
+        #[serde(default)]
+        max_nxdomain: Option<usize>,
+        #[serde(default)]
+        max_queries: Option<usize>,
         window_secs: u64,
     },
     /// Generic threshold on matching packets: protocol + optional port, count within window.
     PacketThreshold {
         protocol: String,
-        #[serde(default)] dst_port: Option<u16>,
+        #[serde(default)]
+        dst_port: Option<u16>,
         threshold: usize,
         window_secs: u64,
     },
 }
 
-fn default_proto() -> String { "any".into() }
+fn default_proto() -> String {
+    "any".into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Rule {
@@ -96,16 +111,34 @@ impl RuleSet {
                 return Err(RuleError::Invalid(format!("duplicate id {}", r.id)));
             }
             if !(0.0..=1.0).contains(&r.confidence) {
-                return Err(RuleError::Invalid(format!("{}: confidence out of range", r.id)));
+                return Err(RuleError::Invalid(format!(
+                    "{}: confidence out of range",
+                    r.id
+                )));
             }
             let zero_window = match &r.kind {
-                RuleKind::PortScan { window_secs, distinct_ports, .. } => *window_secs == 0 || *distinct_ports == 0,
-                RuleKind::FailedConnections { window_secs, threshold, .. } => *window_secs == 0 || *threshold == 0,
+                RuleKind::PortScan {
+                    window_secs,
+                    distinct_ports,
+                    ..
+                } => *window_secs == 0 || *distinct_ports == 0,
+                RuleKind::FailedConnections {
+                    window_secs,
+                    threshold,
+                    ..
+                } => *window_secs == 0 || *threshold == 0,
                 RuleKind::DnsAnomaly { window_secs, .. } => *window_secs == 0,
-                RuleKind::PacketThreshold { window_secs, threshold, .. } => *window_secs == 0 || *threshold == 0,
+                RuleKind::PacketThreshold {
+                    window_secs,
+                    threshold,
+                    ..
+                } => *window_secs == 0 || *threshold == 0,
             };
             if zero_window {
-                return Err(RuleError::Invalid(format!("{}: thresholds and windows must be > 0", r.id)));
+                return Err(RuleError::Invalid(format!(
+                    "{}: thresholds and windows must be > 0",
+                    r.id
+                )));
             }
         }
         Ok(())
@@ -125,13 +158,19 @@ impl RuleStore {
         let text = std::fs::read_to_string(&path).map_err(RuleError::Io)?;
         let current = RuleSet::parse(&text)?;
         let mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-        Ok(Self { path, mtime, current })
+        Ok(Self {
+            path,
+            mtime,
+            current,
+        })
     }
 
     /// Reload only if the file changed. Returns Ok(true) when new rules were applied.
     /// On a parse error the previous good rule set is kept.
     pub fn reload_if_changed(&mut self) -> Result<bool, RuleError> {
-        let mtime = std::fs::metadata(&self.path).and_then(|m| m.modified()).ok();
+        let mtime = std::fs::metadata(&self.path)
+            .and_then(|m| m.modified())
+            .ok();
         if mtime == self.mtime {
             return Ok(false);
         }

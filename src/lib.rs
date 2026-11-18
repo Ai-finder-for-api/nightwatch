@@ -1,5 +1,7 @@
 //! NIGHTWATCH: passive network threat detection engine.
 //!
+//! SPDX-License-Identifier: MIT OR Apache-2.0
+//!
 //! Module layout (each independently testable):
 //! - `pcap`      capture-file reading/writing (offline analysis)
 //! - `parse`     Ethernet / IPv4 / IPv6 / TCP / UDP / ICMP / DNS decoding

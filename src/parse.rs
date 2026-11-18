@@ -28,10 +28,25 @@ impl std::error::Error for ParseError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transport {
-    Tcp { src_port: u16, dst_port: u16, flags: u8, seq: u32 },
-    Udp { src_port: u16, dst_port: u16, payload_len: usize },
-    Icmp { icmp_type: u8, code: u8 },
-    Icmpv6 { icmp_type: u8, code: u8 },
+    Tcp {
+        src_port: u16,
+        dst_port: u16,
+        flags: u8,
+        seq: u32,
+    },
+    Udp {
+        src_port: u16,
+        dst_port: u16,
+        payload_len: usize,
+    },
+    Icmp {
+        icmp_type: u8,
+        code: u8,
+    },
+    Icmpv6 {
+        icmp_type: u8,
+        code: u8,
+    },
     /// Fragmented or unknown transport: carries the IP protocol number.
     Other(u8),
 }
@@ -91,7 +106,12 @@ fn be16(b: &[u8], o: usize) -> Option<u16> {
     Some(u16::from_be_bytes([*b.get(o)?, *b.get(o + 1)?]))
 }
 fn be32(b: &[u8], o: usize) -> Option<u32> {
-    Some(u32::from_be_bytes([*b.get(o)?, *b.get(o + 1)?, *b.get(o + 2)?, *b.get(o + 3)?]))
+    Some(u32::from_be_bytes([
+        *b.get(o)?,
+        *b.get(o + 1)?,
+        *b.get(o + 2)?,
+        *b.get(o + 3)?,
+    ]))
 }
 
 /// Parse a captured frame according to its pcap link type.
@@ -153,7 +173,16 @@ fn parse_ipv4(ts_us: u64, data: &[u8]) -> Result<Packet, ParseError> {
     } else {
         parse_transport(proto, &data[ihl..end], false)?
     };
-    Ok(finish(ts_us, src, dst, 4, proto, total_len, transport, &data[ihl..end]))
+    Ok(finish(
+        ts_us,
+        src,
+        dst,
+        4,
+        proto,
+        total_len,
+        transport,
+        &data[ihl..end],
+    ))
 }
 
 fn parse_ipv6(ts_us: u64, data: &[u8]) -> Result<Packet, ParseError> {
@@ -172,8 +201,13 @@ fn parse_ipv6(ts_us: u64, data: &[u8]) -> Result<Packet, ParseError> {
     for _ in 0..8 {
         match next {
             0 | 43 | 60 => {
-                let nh = *data.get(off).ok_or(ParseError::Truncated("ipv6 ext header"))?;
-                let hl = *data.get(off + 1).ok_or(ParseError::Truncated("ipv6 ext length"))? as usize;
+                let nh = *data
+                    .get(off)
+                    .ok_or(ParseError::Truncated("ipv6 ext header"))?;
+                let hl = *data
+                    .get(off + 1)
+                    .ok_or(ParseError::Truncated("ipv6 ext length"))?
+                    as usize;
                 next = nh;
                 off += (hl + 1) * 8;
                 if off > end {
@@ -182,10 +216,21 @@ fn parse_ipv6(ts_us: u64, data: &[u8]) -> Result<Packet, ParseError> {
             }
             44 => {
                 // Fragment header: only the first fragment carries a transport header.
-                let nh = *data.get(off).ok_or(ParseError::Truncated("ipv6 frag header"))?;
+                let nh = *data
+                    .get(off)
+                    .ok_or(ParseError::Truncated("ipv6 frag header"))?;
                 let frag_off = be16(data, off + 2).unwrap_or(0) & 0xfff8;
                 if frag_off != 0 {
-                    return Ok(finish(ts_us, IpAddr::V6(Ipv6Addr::from(src_b)), IpAddr::V6(Ipv6Addr::from(dst_b)), 6, 44, payload_len, Transport::Other(44), &[]));
+                    return Ok(finish(
+                        ts_us,
+                        IpAddr::V6(Ipv6Addr::from(src_b)),
+                        IpAddr::V6(Ipv6Addr::from(dst_b)),
+                        6,
+                        44,
+                        payload_len,
+                        Transport::Other(44),
+                        &[],
+                    ));
                 }
                 next = nh;
                 off += 8;
@@ -198,17 +243,45 @@ fn parse_ipv6(ts_us: u64, data: &[u8]) -> Result<Packet, ParseError> {
     } else {
         parse_transport(next, &data[off..end], true)?
     };
-    Ok(finish(ts_us, IpAddr::V6(Ipv6Addr::from(src_b)), IpAddr::V6(Ipv6Addr::from(dst_b)), 6, next, payload_len + 40, transport, &data[off.min(end)..end]))
+    Ok(finish(
+        ts_us,
+        IpAddr::V6(Ipv6Addr::from(src_b)),
+        IpAddr::V6(Ipv6Addr::from(dst_b)),
+        6,
+        next,
+        payload_len + 40,
+        transport,
+        &data[off.min(end)..end],
+    ))
 }
 
-fn finish(ts_us: u64, src: IpAddr, dst: IpAddr, ver: u8, proto: u8, wire_len: usize, transport: Transport, seg: &[u8]) -> Packet {
+#[allow(clippy::too_many_arguments)]
+fn finish(
+    ts_us: u64,
+    src: IpAddr,
+    dst: IpAddr,
+    ver: u8,
+    proto: u8,
+    wire_len: usize,
+    transport: Transport,
+    seg: &[u8],
+) -> Packet {
     let dns = match &transport {
-        Transport::Udp { src_port, dst_port, .. } if *src_port == 53 || *dst_port == 53 => {
-            seg.get(8..).and_then(parse_dns)
-        }
+        Transport::Udp {
+            src_port, dst_port, ..
+        } if *src_port == 53 || *dst_port == 53 => seg.get(8..).and_then(parse_dns),
         _ => None,
     };
-    Packet { ts_us, src, dst, ip_version: ver, ip_proto: proto, wire_len, transport, dns }
+    Packet {
+        ts_us,
+        src,
+        dst,
+        ip_version: ver,
+        ip_proto: proto,
+        wire_len,
+        transport,
+        dns,
+    }
 }
 
 fn parse_transport(proto: u8, seg: &[u8], v6: bool) -> Result<Transport, ParseError> {
@@ -234,19 +307,29 @@ fn parse_transport(proto: u8, seg: &[u8], v6: bool) -> Result<Transport, ParseEr
             }
             let src_port = be16(seg, 0).ok_or(ParseError::Truncated("udp"))?;
             let dst_port = be16(seg, 2).ok_or(ParseError::Truncated("udp"))?;
-            Ok(Transport::Udp { src_port, dst_port, payload_len: seg.len() - 8 })
+            Ok(Transport::Udp {
+                src_port,
+                dst_port,
+                payload_len: seg.len() - 8,
+            })
         }
         1 if !v6 => {
             if seg.len() < 4 {
                 return Err(ParseError::Truncated("icmp header"));
             }
-            Ok(Transport::Icmp { icmp_type: seg[0], code: seg[1] })
+            Ok(Transport::Icmp {
+                icmp_type: seg[0],
+                code: seg[1],
+            })
         }
         58 if v6 => {
             if seg.len() < 4 {
                 return Err(ParseError::Truncated("icmpv6 header"));
             }
-            Ok(Transport::Icmpv6 { icmp_type: seg[0], code: seg[1] })
+            Ok(Transport::Icmpv6 {
+                icmp_type: seg[0],
+                code: seg[1],
+            })
         }
         p => Ok(Transport::Other(p)),
     }
@@ -261,7 +344,11 @@ pub fn parse_dns(msg: &[u8]) -> Option<DnsInfo> {
     let flags = be16(msg, 2)?;
     let qd = be16(msg, 4)?;
     let an = be16(msg, 6)?;
-    let qname = if qd > 0 { read_name(msg, 12).map(|(n, _)| n) } else { None };
+    let qname = if qd > 0 {
+        read_name(msg, 12).map(|(n, _)| n)
+    } else {
+        None
+    };
     let qtype = if qd > 0 {
         let (_, after) = read_name(msg, 12)?;
         be16(msg, after)?
@@ -293,7 +380,7 @@ fn read_name(msg: &[u8], start: usize) -> Option<(String, usize)> {
             break;
         }
         if len & 0xc0 == 0xc0 {
-            let ptr = (((len & 0x3f) << 8) | *msg.get(pos + 1)? as usize) as usize;
+            let ptr = ((len & 0x3f) << 8) | *msg.get(pos + 1)? as usize;
             if end_pos.is_none() {
                 end_pos = Some(pos + 2);
             }

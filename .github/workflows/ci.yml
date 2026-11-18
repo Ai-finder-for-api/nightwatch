@@ -1,14 +1,92 @@
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
 jobs:
-  test:
+  build-and-test:
+    name: ${{ matrix.os }} / stable
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Show toolchain
+        run: |
+          rustc --version --verbose
+          cargo --version
+
+      - name: Build all targets
+        run: cargo build --locked --all-targets --verbose
+
+      - name: Run tests
+        run: cargo test --locked --all-targets
+
+      - name: Verify CLI and crypto backend
+        run: cargo run --locked -- info
+
+      - name: Build release binary (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo build --locked --release --bin nightwatch
+
+  lint:
+    name: Format and Clippy
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --all
-      - run: cargo run -- info
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+  crate-package:
+    name: crates.io package verification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: List packaged files
+        run: cargo package --locked --list
+      - name: Build and verify package tarball
+        run: cargo package --locked
+      - name: Publish dry run
+        run: cargo publish --dry-run --locked

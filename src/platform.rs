@@ -7,7 +7,11 @@ pub const OS: &str = std::env::consts::OS;
 /// Per-user data directory: `%APPDATA%\nightwatch` (Windows),
 /// `$XDG_DATA_HOME|~/.local/share/nightwatch` (Linux), `~/Library/Application Support/nightwatch` (macOS).
 pub fn data_dir() -> PathBuf {
-    let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let env = |k: &str| {
+        std::env::var_os(k)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
     let base = if cfg!(windows) {
         env("APPDATA").or_else(|| env("USERPROFILE"))
     } else if cfg!(target_os = "macos") {
@@ -15,7 +19,8 @@ pub fn data_dir() -> PathBuf {
     } else {
         env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local").join("share")))
     };
-    base.unwrap_or_else(|| PathBuf::from(".")).join("nightwatch")
+    base.unwrap_or_else(|| PathBuf::from("."))
+        .join("nightwatch")
 }
 
 pub fn default_key_path() -> PathBuf {
@@ -43,7 +48,10 @@ pub fn restrict_file(path: &Path) -> Result<()> {
 /// Write a new secret file; refuses to overwrite.
 pub fn write_secret(path: &Path, data: &[u8]) -> Result<()> {
     if path.exists() {
-        bail!("{} already exists; refusing to overwrite a key", path.display());
+        bail!(
+            "{} already exists; refusing to overwrite a key",
+            path.display()
+        );
     }
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -52,7 +60,11 @@ pub fn write_secret(path: &Path, data: &[u8]) -> Result<()> {
     {
         use std::io::Write;
         use std::os::unix::fs::OpenOptionsExt;
-        let mut f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(path)?;
         f.write_all(data)?;
     }
     #[cfg(not(unix))]

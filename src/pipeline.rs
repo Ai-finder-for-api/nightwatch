@@ -18,7 +18,11 @@ pub struct PipelineReport {
     pub findings: Vec<Finding>,
 }
 
-pub async fn analyze_pcap(path: PathBuf, rules: RuleSet, queue_capacity: usize) -> anyhow::Result<PipelineReport> {
+pub async fn analyze_pcap(
+    path: PathBuf,
+    rules: RuleSet,
+    queue_capacity: usize,
+) -> anyhow::Result<PipelineReport> {
     let (tx, mut rx) = mpsc::channel::<Packet>(queue_capacity.max(1));
     let reader = tokio::task::spawn_blocking(move || -> anyhow::Result<u64> {
         let file = File::open(&path)?;
@@ -44,5 +48,9 @@ pub async fn analyze_pcap(path: PathBuf, rules: RuleSet, queue_capacity: usize) 
         findings.extend(engine.process(&pkt));
     }
     let malformed = reader.await??;
-    Ok(PipelineReport { packets: engine.packets_seen, malformed, findings })
+    Ok(PipelineReport {
+        packets: engine.packets_seen,
+        malformed,
+        findings,
+    })
 }

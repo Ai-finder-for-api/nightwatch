@@ -1,0 +1,11 @@
+NIGHTWATCH
+Copyright (c) 2025-2026 Ai-finder-for-api and NIGHTWATCH contributors
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+
+This project is dual-licensed under either the Apache License, Version 2.0
+(LICENSE-APACHE) or the MIT license (LICENSE-MIT), at your option.
+
+The vendor/qs_crypt directory contains a vendored subset of qs_crypt from
+https://github.com/Ai-finder-for-api/qs_crypt, distributed under the same
+dual license. See THIRD_PARTY_NOTICES.md for provenance and caveats.

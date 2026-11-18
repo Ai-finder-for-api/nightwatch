@@ -1,4 +1,7 @@
-target/
+/target/
 *.db
 *.db-wal
 *.db-shm
+*.key
+*.sealed
+*.crate

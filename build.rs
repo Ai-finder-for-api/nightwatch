@@ -1,34 +1,75 @@
-//! Compiles the vendored qs_crypt C library (cross-platform: Linux, macOS, Windows).
-use std::path::{Path, PathBuf};
+//! Compiles the vendored qs_crypt C subset on Linux, macOS and Windows.
+//!
+//! NIGHTWATCH needs hashing, key handling, ChaCha20-Poly1305 and sealed
+//! containers. Intentionally unsupported qs_crypt modules (X25519, RSA,
+//! ML-KEM, etc.) are not compiled: they are not used here, and some require
+//! compiler extensions that MSVC does not support.
+use std::path::PathBuf;
 
-fn collect(dir: &Path, out: &mut Vec<PathBuf>) {
-    for e in std::fs::read_dir(dir).unwrap() {
-        let p = e.unwrap().path();
-        if p.is_dir() {
-            collect(&p, out);
-        } else if p.extension().map_or(false, |x| x == "c") {
-            out.push(p);
-        }
-    }
-}
+const SOURCES: &[&str] = &[
+    "src/core/qs_crypt_alloc.c",
+    "src/core/qs_crypt_core.c",
+    "src/core/qs_crypt_registry.c",
+    "src/random/qs_crypt_random.c",
+    "src/hash/qs_crypt_hash_dispatch.c",
+    "src/hash/qs_crypt_hstate.c",
+    "src/hash/qs_crypt_keccak.c",
+    "src/hash/qs_crypt_sha256.c",
+    "src/hash/qs_crypt_sha512.c",
+    "src/mac/qs_crypt_hmac.c",
+    "src/kdf/qs_crypt_hkdf.c",
+    "src/symmetric/qs_crypt_chacha20.c",
+    "src/aead/qs_crypt_poly1305.c",
+    "src/aead/qs_crypt_chacha20poly1305.c",
+    "src/aead/qs_crypt_aes_gcm.c",
+    "src/aead/qs_crypt_aead_dispatch.c",
+    "src/serialization/qs_crypt_wire.c",
+    "src/containers/qs_crypt_seal.c",
+    "src/key_management/qs_crypt_keys.c",
+];
 
 fn main() {
     let root = PathBuf::from("vendor/qs_crypt");
-    let mut files = Vec::new();
-    collect(&root.join("src"), &mut files);
-    files.sort();
-    let target = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    let mut b = cc::Build::new();
-    b.include(root.join("include")).files(&files).warnings(false).opt_level(2);
-    if target != "windows" {
-        b.define("_GNU_SOURCE", None).flag_if_supported("-std=c11").flag("-pthread");
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+
+    let mut build = cc::Build::new();
+    build
+        .include(root.join("include"))
+        .warnings(false)
+        .opt_level(2)
+        .define("_CRT_SECURE_NO_WARNINGS", None);
+
+    for source in SOURCES {
+        let path = root.join(source);
+        assert!(
+            path.is_file(),
+            "missing vendored qs_crypt source: {}",
+            path.display()
+        );
+        build.file(&path);
+        println!("cargo:rerun-if-changed={}", path.display());
     }
-    b.compile("qs_crypt");
-    match target.as_str() {
-        "windows" => println!("cargo:rustc-link-lib=bcrypt"),
-        "linux" => println!("cargo:rustc-link-lib=pthread"),
-        _ => {}
+
+    if target_os == "windows" {
+        if target_env == "msvc" {
+            // Needed for C11 _Static_assert and compound literals.
+            build.flag_if_supported("/std:c11");
+        } else {
+            build.flag_if_supported("-std=c11");
+        }
+        println!("cargo:rustc-link-lib=bcrypt");
+    } else {
+        build
+            .define("_GNU_SOURCE", None)
+            .flag_if_supported("-std=c11");
+        if target_os == "linux" {
+            build.flag("-pthread");
+            println!("cargo:rustc-link-lib=pthread");
+        }
     }
-    println!("cargo:rerun-if-changed=vendor/qs_crypt");
+
+    build.compile("qs_crypt");
+    println!("cargo:rerun-if-changed=vendor/qs_crypt/include");
     println!("cargo:rerun-if-changed=build.rs");
 }

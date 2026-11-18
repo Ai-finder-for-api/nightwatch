@@ -1,13 +1,37 @@
 [package]
-name = "nightwatch"
+name = "nightwatch-ndr"
 version = "0.1.0"
 edition = "2021"
-description = "NIGHTWATCH - passive network threat detection engine"
-license = "MIT"
+description = "Passive network threat detection engine with offline PCAP analysis, declarative rules, and SQLite event storage"
+license = "MIT OR Apache-2.0"
+authors = ["Ai-finder-for-api and NIGHTWATCH contributors"]
+repository = "https://github.com/Ai-finder-for-api/nightwatch"
+homepage = "https://crates.io/crates/nightwatch-ndr"
+documentation = "https://docs.rs/nightwatch-ndr"
+readme = "README.md"
+keywords = ["pcap", "network-security", "ids", "detection", "rust"]
+categories = ["command-line-utilities", "network-programming"]
 build = "build.rs"
+include = [
+  "/build.rs",
+  "/Cargo.lock",
+  "/CHANGELOG.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE-MIT",
+  "/LICENSE-APACHE",
+  "/NOTICE",
+  "/PUBLISHING.md",
+  "/README.md",
+  "/THIRD_PARTY_NOTICES.md",
+  "/fixtures/**",
+  "/rules/**",
+  "/src/**",
+  "/tests/**",
+  "/vendor/qs_crypt/**",
+]
 
 [lib]
-name = "nightwatch"
+name = "nightwatch_ndr"
 path = "src/lib.rs"
 
 [[bin]]

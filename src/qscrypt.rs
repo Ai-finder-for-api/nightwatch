@@ -1,4 +1,4 @@
-//! Safe wrapper over the vendored `qs_crypt` C library (FFI).
+//! Safe wrapper over the vendored, dual-licensed `qs_crypt` C library (FFI).
 //!
 //! Used for: SHA3-256 integrity digests of reports, ChaCha20-Poly1305 sealed
 //! (encrypted + authenticated) report export, and OS-entropy key generation.
@@ -48,7 +48,10 @@ pub const KEY_LEN: usize = 32;
 const AAD: &[u8] = b"nightwatch-report-v1";
 
 fn slice(b: &[u8]) -> Slice {
-    Slice { data: b.as_ptr(), length: b.len() as u64 }
+    Slice {
+        data: b.as_ptr(),
+        length: b.len() as u64,
+    }
 }
 
 /// Initialise the library once (checks OS entropy availability).
@@ -63,18 +66,28 @@ pub fn init() -> Result<()> {
 }
 
 pub fn build_info() -> String {
-    unsafe { std::ffi::CStr::from_ptr(qsc_build_info()).to_string_lossy().into_owned() }
+    unsafe {
+        std::ffi::CStr::from_ptr(qsc_build_info())
+            .to_string_lossy()
+            .into_owned()
+    }
 }
 
 /// SHA3-256 digest as lowercase hex.
 pub fn sha3_256_hex(data: &[u8]) -> Result<String> {
     init()?;
-    let mut d = Digest { data: [0; 64], length: 0 };
+    let mut d = Digest {
+        data: [0; 64],
+        length: 0,
+    };
     let rc = unsafe { qsc_hash(ALG_SHA3_256, slice(data), &mut d) };
     if rc != 0 {
         bail!("qs_crypt hash failed (code {rc})");
     }
-    Ok(d.data[..d.length as usize].iter().map(|b| format!("{b:02x}")).collect())
+    Ok(d.data[..d.length as usize]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect())
 }
 
 /// A 256-bit ChaCha20-Poly1305 key owned by the C library (zeroized on drop).
@@ -104,7 +117,10 @@ impl Key {
     }
     /// Encrypt + authenticate. Output is a self-describing qs_crypt container.
     pub fn seal(&self, plaintext: &[u8]) -> Result<Vec<u8>> {
-        let mut out = Buffer { data: std::ptr::null_mut(), length: 0 };
+        let mut out = Buffer {
+            data: std::ptr::null_mut(),
+            length: 0,
+        };
         let rc = unsafe { qsc_seal(self.0, slice(AAD), slice(plaintext), &mut out) };
         if rc != 0 {
             return Err(anyhow!("seal failed (code {rc})"));
@@ -115,10 +131,15 @@ impl Key {
     }
     /// Verify + decrypt. Any tampering or wrong key returns an error.
     pub fn open(&self, container: &[u8]) -> Result<Vec<u8>> {
-        let mut out = Buffer { data: std::ptr::null_mut(), length: 0 };
+        let mut out = Buffer {
+            data: std::ptr::null_mut(),
+            length: 0,
+        };
         let rc = unsafe { qsc_open(self.0, slice(AAD), slice(container), &mut out) };
         if rc != 0 {
-            return Err(anyhow!("open failed (code {rc}): wrong key, corrupted or tampered data"));
+            return Err(anyhow!(
+                "open failed (code {rc}): wrong key, corrupted or tampered data"
+            ));
         }
         let v = unsafe { std::slice::from_raw_parts(out.data, out.length as usize).to_vec() };
         unsafe { qsc_buffer_free(&mut out) };
