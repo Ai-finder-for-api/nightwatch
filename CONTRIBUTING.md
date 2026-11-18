@@ -11,6 +11,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
 cargo package --locked --list
 cargo publish --dry-run --locked
+cargo +1.85 check --locked --all-targets  # minimum supported Rust version
 ```
 
 The same checks run in GitHub Actions on Linux, macOS and Windows. Add tests

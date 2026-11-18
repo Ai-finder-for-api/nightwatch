@@ -6,9 +6,12 @@ All notable changes to this project are documented here. This project follows
 ## [Unreleased]
 
 ### Added
-- GitHub Actions CI for Linux, macOS and Windows, including build, tests,
-  formatting, Clippy and package verification.
-- A tag-triggered crates.io publishing workflow and documented release process.
+- GitHub Actions CI for Linux, macOS and Windows, including release builds,
+  tests, a synthetic-PCAP CLI smoke test, binary artifacts, formatting,
+  Clippy, an MSRV 1.85 check and package verification.
+- A tag-triggered crates.io release workflow with a version/tag guard, publish
+  dry run, GitHub release creation and a documented release process.
+- Weekly Dependabot updates for Cargo dependencies and GitHub Actions.
 - crates.io metadata, dual `MIT OR Apache-2.0` licensing and third-party notices.
 - A unique crates.io package name, `nightwatch-ndr` (the `nightwatch` name is
   already occupied).

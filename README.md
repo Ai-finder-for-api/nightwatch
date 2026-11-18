@@ -3,7 +3,7 @@
 [![CI](https://github.com/Ai-finder-for-api/nightwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/Ai-finder-for-api/nightwatch/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/nightwatch-ndr.svg)](https://crates.io/crates/nightwatch-ndr)
 [![docs.rs](https://docs.rs/nightwatch-ndr/badge.svg)](https://docs.rs/nightwatch-ndr)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE)
 
 A passive, modular network security engine in Rust (stable) with a Tokio
 pipeline and SQLite storage. It decodes captured traffic, runs declarative
@@ -19,15 +19,21 @@ JSON. It never transmits packets or probes external systems.
 
 ```sh
 cargo install nightwatch-ndr --bin nightwatch   # once published
-# Or, from a checkout:
+# Or install the development version:
+cargo install --git https://github.com/Ai-finder-for-api/nightwatch --bin nightwatch
+# Or build from a checkout:
 cargo build --release
 cargo test --locked --all-targets
 ```
 
+A C compiler is required (gcc/clang on Linux/macOS; MSVC Build Tools on
+Windows), and the minimum supported Rust version is **1.85**.
+
 GitHub Actions builds and tests every push and pull request on Ubuntu, Windows
-and macOS, runs Rustfmt/Clippy, and verifies the crates.io package. A separate
+and macOS, runs Rustfmt/Clippy and an MSRV check, smoke-tests the synthetic
+PCAP fixture, uploads binaries, and verifies the crates.io package. A separate
 tag-triggered workflow publishes to crates.io after the
-`CARGO_REGISTRY_TOKEN` repository secret is configured.
+`CARGO_REGISTRY_TOKEN` secret is configured and creates a GitHub release.
 
 ## Quick start (offline analysis)
 
@@ -106,11 +112,13 @@ tamper detection, wrong-key and bad-length rejection, and platform paths.
 ## CI, packaging and publishing
 
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) — cross-platform
-  build/test matrix, Rustfmt, Clippy, release binary, `cargo package` and
-  `cargo publish --dry-run`.
-- [`.github/workflows/publish.yml`](.github/workflows/publish.yml) — verifies
-  that a `vX.Y.Z` tag matches `Cargo.toml`, dry-runs the package and publishes
-  with `CARGO_REGISTRY_TOKEN`.
+  build/test matrix, Rustfmt, Clippy, MSRV check, release binary, PCAP smoke
+  test, build artifacts, `cargo package` and `cargo publish --dry-run`.
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) — verifies
+  that a `vX.Y.Z` tag matches `Cargo.toml`, runs tests and a publish dry run,
+  publishes with `CARGO_REGISTRY_TOKEN`, then creates a GitHub release.
+- [`.github/dependabot.yml`](.github/dependabot.yml) — weekly Cargo and
+  GitHub Actions dependency updates.
 - [PUBLISHING.md](PUBLISHING.md) — one-time crates.io setup and release steps.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — local checks expected before a PR.
 - [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — provenance, licensing and
@@ -137,8 +145,8 @@ audit; review `vendor/qs_crypt/HANDOFF.md` before production use.
 
 ## License and status
 
-Dual-licensed under `MIT OR Apache-2.0`; see `LICENSE-MIT`, `LICENSE-APACHE`,
-`NOTICE` and `THIRD_PARTY_NOTICES.md`.
+Dual-licensed under `MIT OR Apache-2.0`; see `LICENSE`, `LICENSE-MIT`,
+`LICENSE-APACHE`, `NOTICE` and `THIRD_PARTY_NOTICES.md`.
 
 Honest limitations:
 

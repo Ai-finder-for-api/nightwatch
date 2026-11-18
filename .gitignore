@@ -5,3 +5,6 @@
 *.key
 *.sealed
 *.crate
+ci.db*
+ci_findings.json
+ci_report.json

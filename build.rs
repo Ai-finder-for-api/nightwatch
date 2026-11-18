@@ -31,7 +31,6 @@ const SOURCES: &[&str] = &[
 fn main() {
     let root = PathBuf::from("vendor/qs_crypt");
     let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
 
     let mut build = cc::Build::new();
     build
@@ -51,18 +50,17 @@ fn main() {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 
+    let msvc = build.get_compiler().is_like_msvc();
+    if msvc {
+        // Needed for C11 _Static_assert and compound literals.
+        build.flag_if_supported("/std:c11");
+    } else {
+        build.flag_if_supported("-std=c11");
+    }
     if target_os == "windows" {
-        if target_env == "msvc" {
-            // Needed for C11 _Static_assert and compound literals.
-            build.flag_if_supported("/std:c11");
-        } else {
-            build.flag_if_supported("-std=c11");
-        }
         println!("cargo:rustc-link-lib=bcrypt");
     } else {
-        build
-            .define("_GNU_SOURCE", None)
-            .flag_if_supported("-std=c11");
+        build.define("_GNU_SOURCE", None);
         if target_os == "linux" {
             build.flag("-pthread");
             println!("cargo:rustc-link-lib=pthread");

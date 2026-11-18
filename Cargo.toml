@@ -2,6 +2,7 @@
 name = "nightwatch-ndr"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.85"
 description = "Passive network threat detection engine with offline PCAP analysis, declarative rules, and SQLite event storage"
 license = "MIT OR Apache-2.0"
 authors = ["Ai-finder-for-api and NIGHTWATCH contributors"]
@@ -17,6 +18,7 @@ include = [
   "/Cargo.lock",
   "/CHANGELOG.md",
   "/CONTRIBUTING.md",
+  "/LICENSE",
   "/LICENSE-MIT",
   "/LICENSE-APACHE",
   "/NOTICE",

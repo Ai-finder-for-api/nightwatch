@@ -7,8 +7,9 @@ The crate is named **`nightwatch-ndr`** because the crates.io name
 ## One-time setup
 
 1. Create a crates.io API token with publish rights for `nightwatch-ndr`.
-2. In GitHub, open **Settings → Secrets and variables → Actions** and add a
-   repository secret named `CARGO_REGISTRY_TOKEN` containing that token.
+2. In GitHub, open **Settings → Environments**, create the `crates-io`
+   environment used by the release workflow, and add an environment secret
+   named `CARGO_REGISTRY_TOKEN` containing that token.
 3. Ensure the crates.io account has permission to publish the crate name. For a
    first release, the token owner may need to create the crate once locally
    with `cargo publish --locked` or claim the name on crates.io.
@@ -36,12 +37,13 @@ published**.
    git push origin v0.1.0
    ```
 
-5. The [publish workflow](.github/workflows/publish.yml) checks that the tag
-   matches `Cargo.toml`, runs `cargo publish --dry-run --locked`, and then runs
-   `cargo publish --locked` using `CARGO_REGISTRY_TOKEN`.
-6. Confirm the release on <https://crates.io/crates/nightwatch-ndr> and
-   <https://docs.rs/nightwatch-ndr>.
+5. The [release workflow](.github/workflows/release.yml) checks that the tag
+   matches `Cargo.toml`, runs the tests and `cargo publish --dry-run --locked`,
+   publishes with `cargo publish --locked` using `CARGO_REGISTRY_TOKEN`, then
+   creates a GitHub release with generated notes.
+6. Confirm the release on <https://crates.io/crates/nightwatch-ndr>,
+   <https://docs.rs/nightwatch-ndr> and the repository Releases page.
 
-`workflow_dispatch` on the publish workflow performs a dry run only unless the
-run is from a `v*` tag. Each crates.io version is immutable, so a failed upload
+`workflow_dispatch` on the release workflow performs verification only; only a
+`v*` tag can publish. Each crates.io version is immutable, so a failed upload
 requires a version bump.

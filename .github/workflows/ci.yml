@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -18,49 +19,8 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
-  build-and-test:
-    name: ${{ matrix.os }} / stable
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Install stable Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Cache Rust artifacts
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-
-      - name: Show toolchain
-        run: |
-          rustc --version --verbose
-          cargo --version
-
-      - name: Build all targets
-        run: cargo build --locked --all-targets --verbose
-
-      - name: Run tests
-        run: cargo test --locked --all-targets
-
-      - name: Verify CLI and crypto backend
-        run: cargo run --locked -- info
-
-      - name: Build release binary (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: cargo build --locked --release --bin nightwatch
-
   lint:
-    name: Format and Clippy
+    name: Rustfmt and Clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,10 +30,68 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - name: Rustfmt
         run: cargo fmt --all -- --check
       - name: Clippy
         run: cargo clippy --locked --all-targets -- -D warnings
+
+  build-and-test:
+    name: ${{ matrix.os }} / stable
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Show toolchain
+        run: |
+          rustc --version --verbose
+          cargo --version
+      - name: Build release CLI
+        run: cargo build --locked --release --bin nightwatch
+      - name: Test all targets
+        run: cargo test --locked --all-targets
+      - name: Smoke test CLI on synthetic PCAP fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN=target/release/nightwatch
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" info
+          "$BIN" analyze fixtures/sample_attacks.pcap --db ci.db --json ci_findings.json
+          "$BIN" report --db ci.db --out ci_report.json
+          test -s ci_findings.json
+          test -s ci_report.json
+      - name: Upload release binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightwatch-${{ matrix.os }}
+          path: |
+            target/release/nightwatch
+            target/release/nightwatch.exe
+          if-no-files-found: ignore
+
+  msrv:
+    name: MSRV (1.85)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
+      - name: Check with minimum supported Rust
+        run: cargo check --locked --all-targets
 
   crate-package:
     name: crates.io package verification

@@ -1,0 +1,11 @@
+NIGHTWATCH is dual-licensed under either of:
+
+  * Apache License, Version 2.0 (see LICENSE-APACHE)
+  * MIT license (see LICENSE-MIT)
+
+at your option.
+
+SPDX-License-Identifier: MIT OR Apache-2.0
+
+See NOTICE and THIRD_PARTY_NOTICES.md for attribution and the license terms
+that apply to vendored qs_crypt sources.
