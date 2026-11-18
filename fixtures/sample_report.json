@@ -1,0 +1,119 @@
+{
+  "finding_count": 5,
+  "findings": [
+    {
+      "actor": "192.0.2.66",
+      "confidence": 0.8999999761581421,
+      "observed": 20,
+      "rule_id": "PS-001",
+      "severity": "high",
+      "summary": "192.0.2.66 touched 20 distinct ports within 60s",
+      "target": null,
+      "title": "Horizontal TCP port scan",
+      "ts_us": 1700000002100000
+    },
+    {
+      "actor": "10.0.0.9",
+      "confidence": 0.75,
+      "observed": 8,
+      "rule_id": "FC-002",
+      "severity": "high",
+      "summary": "8 failed connections from 10.0.0.9 to 10.0.0.5:22 within 120s",
+      "target": "10.0.0.5",
+      "title": "Brute-force pattern on SSH",
+      "ts_us": 1700000019100000
+    },
+    {
+      "actor": "10.0.0.9",
+      "confidence": 0.800000011920929,
+      "observed": 10,
+      "rule_id": "FC-001",
+      "severity": "medium",
+      "summary": "10 failed connections from 10.0.0.9 to 10.0.0.5:22 within 60s",
+      "target": "10.0.0.5",
+      "title": "Repeated connection failures",
+      "ts_us": 1700000023100000
+    },
+    {
+      "actor": "10.0.0.9",
+      "confidence": 0.699999988079071,
+      "observed": 1,
+      "rule_id": "DNS-002",
+      "severity": "high",
+      "summary": "DNS query name length 119 exceeds 60: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...",
+      "target": "10.0.0.1",
+      "title": "Oversized DNS query name (possible tunneling)",
+      "ts_us": 1700000027101000
+    },
+    {
+      "actor": "192.0.2.66",
+      "confidence": 0.5,
+      "observed": 50,
+      "rule_id": "ICMP-001",
+      "severity": "low",
+      "summary": "50 icmp packets from 192.0.2.66 within 10s",
+      "target": "10.0.0.5",
+      "title": "ICMP flood",
+      "ts_us": 1700000028100000
+    }
+  ],
+  "generator": "nightwatch",
+  "incidents": [
+    {
+      "actor": "192.0.2.66",
+      "confidence": 0.949999988079071,
+      "finding_count": 2,
+      "first_ts_us": 1700000002100000,
+      "id": "INC-0001",
+      "last_ts_us": 1700000028100000,
+      "rule_ids": [
+        "ICMP-001",
+        "PS-001"
+      ],
+      "severity": "high",
+      "timeline": [
+        {
+          "rule_id": "PS-001",
+          "summary": "192.0.2.66 touched 20 distinct ports within 60s",
+          "ts_us": 1700000002100000
+        },
+        {
+          "rule_id": "ICMP-001",
+          "summary": "50 icmp packets from 192.0.2.66 within 10s",
+          "ts_us": 1700000028100000
+        }
+      ]
+    },
+    {
+      "actor": "10.0.0.9",
+      "confidence": 0.9850000143051147,
+      "finding_count": 3,
+      "first_ts_us": 1700000019100000,
+      "id": "INC-0002",
+      "last_ts_us": 1700000027101000,
+      "rule_ids": [
+        "DNS-002",
+        "FC-001",
+        "FC-002"
+      ],
+      "severity": "high",
+      "timeline": [
+        {
+          "rule_id": "FC-002",
+          "summary": "8 failed connections from 10.0.0.9 to 10.0.0.5:22 within 120s",
+          "ts_us": 1700000019100000
+        },
+        {
+          "rule_id": "FC-001",
+          "summary": "10 failed connections from 10.0.0.9 to 10.0.0.5:22 within 60s",
+          "ts_us": 1700000023100000
+        },
+        {
+          "rule_id": "DNS-002",
+          "summary": "DNS query name length 119 exceeds 60: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...",
+          "ts_us": 1700000027101000
+        }
+      ]
+    }
+  ]
+}

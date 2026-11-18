@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "rules": [
+    {"id": "PS-001", "title": "Horizontal TCP port scan", "enabled": true, "severity": "high", "confidence": 0.9,
+     "kind": "port_scan", "protocol": "tcp", "distinct_ports": 20, "window_secs": 60, "by_host": false},
+    {"id": "PS-002", "title": "Host sweep (many hosts probed)", "enabled": true, "severity": "medium", "confidence": 0.7,
+     "kind": "port_scan", "protocol": "any", "distinct_ports": 15, "window_secs": 60, "by_host": true},
+    {"id": "FC-001", "title": "Repeated connection failures", "enabled": true, "severity": "medium", "confidence": 0.8,
+     "kind": "failed_connections", "threshold": 10, "window_secs": 60},
+    {"id": "FC-002", "title": "Brute-force pattern on SSH", "enabled": true, "severity": "high", "confidence": 0.75,
+     "kind": "failed_connections", "threshold": 8, "window_secs": 120, "dst_port": 22},
+    {"id": "DNS-001", "title": "Anomalous DNS query volume or NXDOMAIN storm", "enabled": true, "severity": "medium", "confidence": 0.6,
+     "kind": "dns_anomaly", "max_queries": 100, "max_nxdomain": 20, "window_secs": 60},
+    {"id": "DNS-002", "title": "Oversized DNS query name (possible tunneling)", "enabled": true, "severity": "high", "confidence": 0.7,
+     "kind": "dns_anomaly", "max_qname_len": 60, "window_secs": 60},
+    {"id": "ICMP-001", "title": "ICMP flood", "enabled": true, "severity": "low", "confidence": 0.5,
+     "kind": "packet_threshold", "protocol": "icmp", "threshold": 50, "window_secs": 10}
+  ]
+}

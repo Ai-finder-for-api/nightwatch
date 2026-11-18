@@ -1,0 +1,57 @@
+[
+  {
+    "rule_id": "PS-001",
+    "title": "Horizontal TCP port scan",
+    "severity": "high",
+    "confidence": 0.9,
+    "ts_us": 1700000002100000,
+    "actor": "192.0.2.66",
+    "target": null,
+    "summary": "192.0.2.66 touched 20 distinct ports within 60s",
+    "observed": 20
+  },
+  {
+    "rule_id": "FC-002",
+    "title": "Brute-force pattern on SSH",
+    "severity": "high",
+    "confidence": 0.75,
+    "ts_us": 1700000019100000,
+    "actor": "10.0.0.9",
+    "target": "10.0.0.5",
+    "summary": "8 failed connections from 10.0.0.9 to 10.0.0.5:22 within 120s",
+    "observed": 8
+  },
+  {
+    "rule_id": "FC-001",
+    "title": "Repeated connection failures",
+    "severity": "medium",
+    "confidence": 0.8,
+    "ts_us": 1700000023100000,
+    "actor": "10.0.0.9",
+    "target": "10.0.0.5",
+    "summary": "10 failed connections from 10.0.0.9 to 10.0.0.5:22 within 60s",
+    "observed": 10
+  },
+  {
+    "rule_id": "DNS-002",
+    "title": "Oversized DNS query name (possible tunneling)",
+    "severity": "high",
+    "confidence": 0.7,
+    "ts_us": 1700000027101000,
+    "actor": "10.0.0.9",
+    "target": "10.0.0.1",
+    "summary": "DNS query name length 119 exceeds 60: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bbbbbbbbbbbbbbbbbbbbbbbbbbbbb...",
+    "observed": 1
+  },
+  {
+    "rule_id": "ICMP-001",
+    "title": "ICMP flood",
+    "severity": "low",
+    "confidence": 0.5,
+    "ts_us": 1700000028100000,
+    "actor": "192.0.2.66",
+    "target": "10.0.0.5",
+    "summary": "50 icmp packets from 192.0.2.66 within 10s",
+    "observed": 50
+  }
+]
